@@ -19,6 +19,7 @@ def grab(x, y, w, h):
     im.save(byte_io, 'JPEG')
     img = Image.open(BytesIO(byte_io.getvalue()))
     text = (pytesseract.image_to_string(img, lang='ita'))
+    text = text.replace('\n', ' ')
     clipboard.copy(text)
 
 click1 = 0
