@@ -21,5 +21,5 @@ The script is more useful if you can launch it through a shortcut.
 - You can select the region with two mouse clicks: the first in the top left corner and the second in the lower right one. 
 - Ctrl-V should paste the text after the OCR did its work.
 
-
+________________________________
 **!!!**  It's only been tested on Linux with X11. **!!!**
