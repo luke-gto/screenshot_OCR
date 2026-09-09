@@ -15,10 +15,12 @@ import cv2
 import numpy as np
 import pytesseract
 from PIL import Image
-from pynput.mouse import Listener
+from pynput.mouse import Button, Listener
 import pyscreenshot as scrsh
 
 os.environ["TESSDATA_PREFIX"] = os.path.dirname(os.path.realpath(__file__))
+
+MIN_SELECTION_PIXELS = 4
 
 
 def pre_processing(image):
@@ -34,13 +36,13 @@ def ordered_corners(x1, y1, x2, y2):
 
 
 def grab(x1, y1, x2, y2, lang):
+    """OCR the selected region and return the recognized text, one line."""
     left, top, right, bottom = ordered_corners(x1, y1, x2, y2)
     im = scrsh.grab(bbox=(left, top, right, bottom))
     image_data = np.asarray(im)
     processed = pre_processing(image_data)
     text = pytesseract.image_to_string(Image.fromarray(processed), lang=lang)
-    text = text.replace("\n", " ")
-    clipboard.copy(text)
+    return text.replace("\n", " ").strip()
 
 
 def main():
@@ -60,13 +62,23 @@ def main():
     def on_click(x, y, button, pressed):
         if not pressed:
             return
+        if button != Button.left:
+            listener.stop()
+            sys.exit("Selection cancelled.")
         if state["clicks"] == 0:
             state["x1"], state["y1"] = x, y
             state["clicks"] = 1
             return
+        left, top, right, bottom = ordered_corners(state["x1"], state["y1"], x, y)
+        if (
+            right - left < MIN_SELECTION_PIXELS
+            or bottom - top < MIN_SELECTION_PIXELS
+        ):
+            listener.stop()
+            sys.exit("Selection too small: click two distinct corners of a text region.")
         listener.stop()
         try:
-            grab(state["x1"], state["y1"], x, y, args.lang)
+            text = grab(state["x1"], state["y1"], x, y, args.lang)
         except pytesseract.TesseractNotFoundError:
             print(
                 "tesseract was not found: install the OCR engine and download "
@@ -75,6 +87,9 @@ def main():
                 file=sys.stderr,
             )
             sys.exit(1)
+        if not text:
+            sys.exit("No text recognized in the selection: clipboard left untouched.")
+        clipboard.copy(text)
         sys.exit()
 
     with Listener(on_click=on_click) as listener:
